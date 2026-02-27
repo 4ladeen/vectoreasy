@@ -768,23 +768,24 @@ class VectorEasyApp {
         if (this.progress) this.progress.error(d.error || 'Processing failed');
         toast.error(d.error || 'Processing failed');
       }
-    if (this.progress) this.progress.complete('Done!');
-    this.colors = data.colors || [];
-    this.layers = data.layers || [];
-    this.resultSvg = data.svg_url || null;
+    } catch (e) { console.warn('Poll error:', e); }
+  }
 
-    if (this.palette)     this.palette.render(this.colors);
+  _onDone(d) {
+    if (this.progress) this.progress.complete('Done!');
+    this.colors = d.colors || [];
+    this.layers = d.layers || [];
+    this.resultSvg = d.svg_url || null;
+
+    if (this.palette)      this.palette.render(this.colors);
     if (this.layers_panel) this.layers_panel.render(this.layers);
-    if (this.exportBar)   this.exportBar.setEnabled(true);
+    if (this.exportBar)    this.exportBar.setEnabled(true);
 
     if (this.vecPreview && this.resultSvg) {
       this.vecPreview.load(this.resultSvg, true);
     }
     toast.success('Vectorization complete!');
-
-    // Make result draggable to desktop
     this._enableDrag();
-
     setTimeout(() => this.progress?.hide(), 3000);
   }
 
