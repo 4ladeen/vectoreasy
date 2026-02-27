@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VectorEasy – Image Vectorizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+    header { background: #1a1a2e; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; border-bottom: 2px solid #7c3aed; }
+    header h1 { font-size: 1.5rem; color: #a78bfa; }
+    .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: #1a1a2e; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid #2d2d4e; }
+    .card h2 { font-size: 1.1rem; color: #a78bfa; margin-bottom: 1rem; }
+    .drop-zone { border: 2px dashed #7c3aed; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: background 0.2s; }
+    .drop-zone:hover, .drop-zone.active { background: #2d1b69; }
+    .drop-zone p { color: #9ca3af; }
+    .btn { background: #7c3aed; color: #fff; border: none; padding: 0.6rem 1.4rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; }
+    .btn:hover { background: #6d28d9; }
+    .btn:disabled { background: #4b5563; cursor: not-allowed; }
+    .btn-sm { padding: 0.4rem 0.9rem; font-size: 0.8rem; }
+    label { display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 0.3rem; }
+    select, input[type=range], input[type=number] { background: #111827; color: #e0e0e0; border: 1px solid #374151; border-radius: 6px; padding: 0.4rem 0.6rem; width: 100%; }
+    .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+    .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .preview-box { background: #111827; border-radius: 8px; overflow: hidden; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+    .preview-box img, .preview-box svg { max-width: 100%; max-height: 400px; object-fit: contain; }
+    .palette-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+    .swatch { width: 28px; height: 28px; border-radius: 4px; border: 2px solid #2d2d4e; cursor: pointer; title: attr(data-color); }
+    .download-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .progress-bar { height: 6px; background: #374151; border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
+    .progress-fill { height: 100%; background: #7c3aed; transition: width 0.3s; }
+    .status-msg { font-size: 0.85rem; color: #9ca3af; margin-top: 0.3rem; }
+    #batch-list { list-style: none; margin-top: 0.5rem; }
+    #batch-list li { display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid #2d2d4e; font-size: 0.85rem; }
+    .tag { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: #374151; }
+    .tag.done { background: #065f46; }
+    .tag.error { background: #7f1d1d; }
+    .tag.processing { background: #1e3a5f; }
+  </style>
+</head>
+<body>
+<header>
+  <span style="font-size:2rem">⚡</span>
+  <h1>VectorEasy</h1>
+  <span style="color:#6b7280; font-size:0.85rem">Raster → Vector in seconds</span>
+</header>
+
+<div class="container">
+  <!-- Upload -->
+  <div class="card">
+    <h2>Upload Image</h2>
+    <div class="drop-zone" id="dropZone">
+      <p>Drop an image here, paste from clipboard, or <label for="fileInput" style="color:#a78bfa; cursor:pointer; display:inline">click to browse</label></p>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+    </div>
+    <div id="batchSection" style="display:none; margin-top:1rem;">
+      <strong style="font-size:0.9rem">Batch Queue:</strong>
+      <ul id="batch-list"></ul>
+      <button class="btn" id="batchBtn" style="margin-top:0.5rem">Process All</button>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <h2>Settings</h2>
+    <div class="settings-grid">
+      <div>
+        <label>Mode</label>
+        <select id="mode">
+          <option value="auto">Auto-detect</option>
+          <option value="photo">Photo</option>
+          <option value="logo">Logo / Illustration</option>
+          <option value="line_art">Line Art</option>
+          <option value="pixel_art">Pixel Art</option>
+        </select>
+      </div>
+      <div>
+        <label>Colors: <span id="colorVal">16</span></label>
+        <input type="range" id="nColors" min="2" max="64" value="16"
+               oninput="document.getElementById('colorVal').textContent=this.value">
+      </div>
+      <div>
+        <label>Detail Level</label>
+        <select id="detail">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+          <option value="ultra">Ultra</option>
+        </select>
+      </div>
+      <div>
+        <label>Quantize Method</label>
+        <select id="quantizeMethod">
+          <option value="kmeans">K-Means</option>
+          <option value="median_cut">Median Cut</option>
+          <option value="octree">Octree</option>
+        </select>
+      </div>
+      <div style="display:flex; align-items:center; gap:0.5rem; padding-top:1.2rem">
+        <input type="checkbox" id="smooth" checked>
+        <label for="smooth" style="margin:0">Smooth curves</label>
+      </div>
+      <div style="display:flex; align-items:center; gap:0.5rem; padding-top:1.2rem">
+        <input type="checkbox" id="upscale" checked>
+        <label for="upscale" style="margin:0">Auto-upscale small images</label>
+      </div>
+    </div>
+    <div style="margin-top:1rem">
+      <button class="btn" id="vectorizeBtn" disabled>Vectorize</button>
+    </div>
+    <div class="progress-bar" id="progressBar" style="display:none">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+
+  <!-- Preview -->
+  <div class="card" id="previewCard" style="display:none">
+    <h2>Preview</h2>
+    <div class="preview-grid">
+      <div>
+        <p style="font-size:0.8rem; color:#6b7280; margin-bottom:0.5rem">Original</p>
+        <div class="preview-box"><img id="origPreview" alt="original"></div>
+      </div>
+      <div>
+        <p style="font-size:0.8rem; color:#6b7280; margin-bottom:0.5rem">Vector Result</p>
+        <div class="preview-box" id="svgPreview"></div>
+      </div>
+    </div>
+    <div style="margin-top:1rem">
+      <strong style="font-size:0.85rem">Palette</strong>
+      <div class="palette-row" id="paletteRow"></div>
+    </div>
+    <div style="margin-top:1rem">
+      <strong style="font-size:0.85rem">Download</strong>
+      <div class="download-row" id="downloadRow"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FORMATS = ['svg','png','jpg','pdf','eps','dxf','gif','bmp','tiff'];
+let currentJobId = null;
+let selectedFile = null;
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const vectorizeBtn = document.getElementById('vectorizeBtn');
+const origPreview = document.getElementById('origPreview');
+const svgPreview = document.getElementById('svgPreview');
+const previewCard = document.getElementById('previewCard');
+const progressBar = document.getElementById('progressBar');
+const progressFill = document.getElementById('progressFill');
+const statusMsg = document.getElementById('statusMsg');
+const paletteRow = document.getElementById('paletteRow');
+const downloadRow = document.getElementById('downloadRow');
+
+function setFile(file) {
+  selectedFile = file;
+  vectorizeBtn.disabled = false;
+  const reader = new FileReader();
+  reader.onload = e => { origPreview.src = e.target.result; };
+  reader.readAsDataURL(file);
+  statusMsg.textContent = `Selected: ${file.name}`;
+}
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('active'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('active');
+  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  if (files.length === 1) setFile(files[0]);
+  else if (files.length > 1) setupBatch(files);
+});
+fileInput.addEventListener('change', () => {
+  const files = [...fileInput.files];
+  if (files.length === 1) setFile(files[0]);
+  else if (files.length > 1) setupBatch(files);
+});
+
+// Clipboard paste
+document.addEventListener('paste', async e => {
+  const items = [...e.clipboardData.items];
+  const imgItem = items.find(i => i.type.startsWith('image/'));
+  if (!imgItem) return;
+  const blob = imgItem.getAsFile();
+  setFile(blob);
+});
+
+function getSettings() {
+  return {
+    mode: document.getElementById('mode').value,
+    n_colors: parseInt(document.getElementById('nColors').value),
+    detail: document.getElementById('detail').value,
+    quantize_method: document.getElementById('quantizeMethod').value,
+    smooth: document.getElementById('smooth').checked,
+    upscale: document.getElementById('upscale').checked,
+  };
+}
+
+async function poll(jobId) {
+  for (let i = 0; i < 300; i++) {
+    await new Promise(r => setTimeout(r, 800));
+    const res = await fetch(`/api/status/${jobId}`);
+    const data = await res.json();
+    const pct = data.progress || 0;
+    progressFill.style.width = pct + '%';
+    statusMsg.textContent = data.stage || 'Processing…';
+    if (data.status === 'done') return true;
+    if (data.status === 'error') { statusMsg.textContent = 'Error: ' + data.error; return false; }
+  }
+  statusMsg.textContent = 'Timed out.';
+  return false;
+}
+
+vectorizeBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  vectorizeBtn.disabled = true;
+  progressBar.style.display = 'block';
+  progressFill.style.width = '0%';
+  statusMsg.textContent = 'Uploading…';
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+  fd.append('settings', JSON.stringify(getSettings()));
+
+  const res = await fetch('/api/vectorize', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (!res.ok) { statusMsg.textContent = 'Upload error: ' + (data.detail || res.status); vectorizeBtn.disabled = false; return; }
+
+  currentJobId = data.job_id;
+  const ok = await poll(currentJobId);
+  if (!ok) { vectorizeBtn.disabled = false; return; }
+
+  // Fetch result
+  const rRes = await fetch(`/api/result/${currentJobId}`);
+  const rData = await rRes.json();
+
+  svgPreview.innerHTML = rData.svg;
+  previewCard.style.display = 'block';
+
+  // Palette
+  paletteRow.innerHTML = '';
+  (rData.palette || []).forEach(c => {
+    const s = document.createElement('div');
+    s.className = 'swatch';
+    s.style.background = c;
+    s.title = c;
+    paletteRow.appendChild(s);
+  });
+
+  // Downloads
+  downloadRow.innerHTML = '';
+  FORMATS.forEach(fmt => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-sm';
+    b.textContent = fmt.toUpperCase();
+    b.onclick = () => { window.location = `/api/download/${currentJobId}/${fmt}`; };
+    downloadRow.appendChild(b);
+  });
+
+  vectorizeBtn.disabled = false;
+  statusMsg.textContent = `Done! ${rData.width}×${rData.height}px → ${rData.palette?.length} colors`;
+  progressFill.style.width = '100%';
+});
+
+// Batch
+function setupBatch(files) {
+  document.getElementById('batchSection').style.display = 'block';
+  const list = document.getElementById('batch-list');
+  list.innerHTML = '';
+  files.forEach(f => {
+    const li = document.createElement('li');
+    li.textContent = f.name;
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = 'queued';
+    li.appendChild(tag);
+    list.appendChild(li);
+  });
+
+  document.getElementById('batchBtn').onclick = async () => {
+    const fd = new FormData();
+    files.forEach(f => fd.append('files', f));
+    fd.append('settings', JSON.stringify(getSettings()));
+    const res = await fetch('/api/batch', { method: 'POST', body: fd });
+    const data = await res.json();
+    const batchId = data.batch_id;
+    // Poll batch status
+    const pollBatch = async () => {
+      const st = await (await fetch(`/api/status/${batchId}`)).json();
+      const jobs = st.jobs || {};
+      [...list.children].forEach((li, i) => {
+        const jid = Object.keys(jobs)[i];
+        if (!jid) return;
+        const tag = li.querySelector('.tag');
+        tag.textContent = jobs[jid].status;
+        tag.className = 'tag ' + jobs[jid].status;
+      });
+      if (st.percent < 100) setTimeout(pollBatch, 1000);
+      else {
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'btn';
+        dlBtn.textContent = 'Download ZIP';
+        dlBtn.style.marginLeft = '1rem';
+        dlBtn.onclick = () => window.location = `/api/batch/download/${batchId}`;
+        document.getElementById('batchBtn').replaceWith(dlBtn);
+      }
+    };
+    pollBatch();
+  };
+}
+</script>
+</body>
+</html>
