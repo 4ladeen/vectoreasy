@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VectorEasy — Image Vectorizer</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="7" fill="#161b22"/>
+      <path d="M7 8L16 24L25 8" stroke="#58a6ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M11 8L16 17" stroke="#a371f7" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+    </svg>
+    Vector<span>Easy</span>
+  </a>
+  <span class="tagline">Raster → Vector in seconds</span>
+  <div class="header-spacer"></div>
+
+  <!-- View toggle (shown after upload) -->
+  <div id="view-toggle-wrap" class="view-toggle hidden">
+    <button class="view-toggle-btn active" data-view="split">Split</button>
+    <button class="view-toggle-btn" data-view="compare">Compare</button>
+    <button class="view-toggle-btn" data-view="original">Original</button>
+    <button class="view-toggle-btn" data-view="vector">Vector</button>
+  </div>
+
+  <button class="nav-btn hidden" id="btn-new-image">↩ New Image</button>
+  <button class="nav-btn" id="btn-batch-tab">Batch</button>
+</header>
+
+<!-- ── Upload Section ──────────────────────────────────────────────────────── -->
+<div id="upload-section" style="padding:2.5rem 1.5rem; max-width:680px; margin:0 auto;">
+
+  <!-- Upload zone -->
+  <div id="upload-zone" class="upload-zone" tabindex="0" role="button" aria-label="Upload image">
+    <div class="upload-icon">
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="4" y="10" width="40" height="30" rx="5" stroke-opacity=".4"/>
+        <path d="M24 32V18M24 18L17 25M24 18L31 25" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M14 38c-4 0-7-3-7-7s3-7 7-7" stroke-opacity=".5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="upload-title">Drop an image here</div>
+    <div class="upload-sub">or click to browse &nbsp;·&nbsp; Ctrl+V to paste</div>
+    <div class="upload-formats">PNG · JPG · WebP · GIF · BMP · TIFF · SVG &nbsp;·&nbsp; max 100 MB</div>
+  </div>
+
+  <!-- Tabs: Single / Batch -->
+  <div class="tabs mt-3">
+    <button class="tab-btn active" data-tab="single">Single Image</button>
+    <button class="tab-btn" data-tab="batch">Batch Mode</button>
+  </div>
+
+  <!-- Batch pane (pre-upload view) -->
+  <div class="tab-pane" id="tab-batch" style="padding-top:.75rem">
+    <div id="batch-panel" class="batch-panel">
+      <div class="batch-drop">
+        <div style="font-size:1.5rem;margin-bottom:.4rem">📂</div>
+        <div style="font-size:.85rem;font-weight:600">Drop multiple images here</div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.2rem">or click to browse</div>
+      </div>
+      <div style="padding:.5rem .75rem;display:flex;gap:.5rem;align-items:center;border-bottom:1px solid var(--border)">
+        <button id="batch-start" class="btn btn-sm btn-success">▶ Process All</button>
+        <button id="batch-download-zip" class="btn btn-sm btn-outline">⬇ Download ZIP</button>
+        <span class="spacer"></span>
+        <span id="batch-count" class="text-xs text-dim">0 files</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="batch-table">
+          <thead><tr>
+            <th>File</th><th>Size</th><th>Status</th><th>Progress</th><th>Download</th>
+          </tr></thead>
+          <tbody id="batch-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Work Area (shown after upload) ──────────────────────────────────────── -->
+<div id="work-area" class="main-content hidden">
+
+  <!-- ── Side Panel ──────────────────────────────────────────────────────── -->
+  <aside class="side-panel" id="controls-panel">
+
+    <!-- File info -->
+    <div class="ctrl-section" style="padding:.6rem 1rem">
+      <div class="flex items-center justify-between">
+        <span id="current-filename" class="text-sm font-bold" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">filename.png</span>
+        <span id="current-filesize" class="text-xs text-dim">0 KB</span>
+      </div>
+    </div>
+
+    <!-- Mode selector -->
+    <div class="ctrl-section">
+      <div class="card-title">Mode</div>
+      <div class="mode-grid">
+        <label class="mode-btn selected">
+          <input type="radio" name="mode" value="color" checked>
+          <span class="mode-icon">🎨</span>
+          <span class="mode-name">Color</span>
+          <span class="mode-desc">Full color</span>
+        </label>
+        <label class="mode-btn">
+          <input type="radio" name="mode" value="bw">
+          <span class="mode-icon">⬛</span>
+          <span class="mode-name">B&amp;W</span>
+          <span class="mode-desc">2 colors</span>
+        </label>
+        <label class="mode-btn">
+          <input type="radio" name="mode" value="grayscale">
+          <span class="mode-icon">🩶</span>
+          <span class="mode-name">Gray</span>
+          <span class="mode-desc">Shades</span>
+        </label>
+        <label class="mode-btn">
+          <input type="radio" name="mode" value="logo">
+          <span class="mode-icon">🏷️</span>
+          <span class="mode-name">Logo</span>
+          <span class="mode-desc">Clean shapes</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Colors -->
+    <div class="ctrl-section">
+      <div class="ctrl-label">
+        <span>Colors</span>
+        <span class="val" id="color-count-val">16</span>
+      </div>
+      <input type="range" id="color-count" min="2" max="64" value="16" step="1">
+      <label class="checkbox-wrap mt-2">
+        <input type="checkbox" id="auto-colors">
+        Auto detect
+      </label>
+    </div>
+
+    <!-- Detail level -->
+    <div class="ctrl-section">
+      <div class="ctrl-label">
+        <span>Detail Level</span>
+        <span class="val" id="detail-val">3</span>
+      </div>
+      <input type="range" id="detail-level" min="1" max="5" value="3" step="1">
+    </div>
+
+    <!-- Smoothing -->
+    <div class="ctrl-section">
+      <div class="ctrl-label">
+        <span>Smoothing</span>
+        <span class="val" id="smoothing-val">50</span>
+      </div>
+      <input type="range" id="smoothing" min="0" max="100" value="50" step="1">
+    </div>
+
+    <!-- Background removal -->
+    <div class="ctrl-section">
+      <div class="toggle-wrap">
+        <span class="toggle-label">Remove Background</span>
+        <label class="toggle">
+          <input type="checkbox" id="remove-bg">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Advanced (accordion) -->
+    <div class="accordion-header" id="adv-header">
+      <span>Advanced Settings</span>
+      <span class="accordion-arrow">▼</span>
+    </div>
+    <div class="accordion-body" id="adv-body">
+      <div class="accordion-inner">
+        <div class="ctrl-label">
+          <span>Despeckle</span>
+          <span class="val" id="despeckle-val">2</span>
+        </div>
+        <input type="range" id="despeckle" min="0" max="10" value="2" step="1">
+      </div>
+      <div class="accordion-inner">
+        <div class="ctrl-label">
+          <span>Path Optimization</span>
+          <span class="val" id="pathopt-val">3</span>
+        </div>
+        <input type="range" id="path-optimize" min="1" max="5" value="3" step="1">
+      </div>
+      <div class="accordion-inner">
+        <div class="ctrl-label">
+          <span>Corner Threshold</span>
+          <span class="val" id="corner-val">60</span>
+        </div>
+        <input type="range" id="corner-thresh" min="0" max="180" value="60" step="5">
+      </div>
+    </div>
+
+    <!-- Re-process button -->
+    <div class="ctrl-section">
+      <button id="btn-reprocess" class="btn btn-block">⚡ Re-vectorize</button>
+    </div>
+
+    <!-- ── Color Palette ───────────────────────────────────────────────── -->
+    <div class="palette-section">
+      <div class="card-title">Color Palette</div>
+      <div id="palette-row" class="palette-row">
+        <span class="text-dim text-xs">No colors yet</span>
+      </div>
+    </div>
+
+    <!-- ── Layers ──────────────────────────────────────────────────────── -->
+    <div class="ctrl-section" style="padding:.6rem 0 0">
+      <div class="card-title" style="padding:0 .75rem .5rem">Layers</div>
+      <ul id="layer-list" class="layer-list">
+        <li style="padding:.6rem .75rem;color:var(--text-dim);font-size:.78rem">No layers</li>
+      </ul>
+    </div>
+
+    <!-- ── Segment Tools ───────────────────────────────────────────────── -->
+    <div class="seg-tools">
+      <input type="color" id="recolor-pick" value="#58a6ff" title="Pick color" style="width:32px;height:28px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;padding:2px;">
+      <button id="btn-recolor" class="btn btn-sm btn-outline" title="Recolor selected layer">Recolor</button>
+      <button id="btn-delete-layer" class="btn btn-sm btn-danger" title="Delete selected layer">Delete</button>
+    </div>
+
+  </aside>
+
+  <!-- ── Preview Area ────────────────────────────────────────────────────── -->
+  <section class="work-area">
+
+    <!-- Toolbar -->
+    <div class="toolbar" id="view-toggle-wrap2">
+      <div class="view-toggle">
+        <button class="view-toggle-btn active" data-view="split">⊞ Split</button>
+        <button class="view-toggle-btn" data-view="compare">↔ Compare</button>
+        <button class="view-toggle-btn" data-view="original">Original</button>
+        <button class="view-toggle-btn" data-view="vector">Vector</button>
+      </div>
+      <span class="spacer"></span>
+      <span class="drag-hint">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        Drag result to desktop
+      </span>
+    </div>
+
+    <!-- Preview panels (split) -->
+    <div id="preview-panels" class="preview-container">
+      <div class="preview-panels">
+
+        <!-- Original -->
+        <div class="preview-panel" id="panel-original">
+          <span class="preview-panel-label">Original</span>
+          <div class="preview-canvas-wrap">
+            <div class="preview-empty">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9l4-4 5 5 4-4 5 5"/></svg>
+              <div>No image loaded</div>
+            </div>
+          </div>
+          <div class="zoom-controls">
+            <button class="zoom-btn" data-action="out" title="Zoom out">−</button>
+            <span class="zoom-indicator">100%</span>
+            <button class="zoom-btn" data-action="in" title="Zoom in">+</button>
+            <button class="zoom-btn" data-action="fit" title="Fit to screen">⤢</button>
+          </div>
+        </div>
+
+        <!-- Vectorized -->
+        <div class="preview-panel" id="panel-vectorized">
+          <span class="preview-panel-label">Vectorized</span>
+          <div class="preview-canvas-wrap">
+            <div class="preview-empty">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="M8 10 Q12 6 16 14" stroke-linecap="round"/></svg>
+              <div>Vectorization result</div>
+            </div>
+          </div>
+          <div class="zoom-controls">
+            <button class="zoom-btn" data-action="out" title="Zoom out">−</button>
+            <span class="zoom-indicator">100%</span>
+            <button class="zoom-btn" data-action="in" title="Zoom in">+</button>
+            <button class="zoom-btn" data-action="fit" title="Fit to screen">⤢</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Comparison slider (hidden until Compare mode) -->
+    <div id="comparison-container" class="comparison-container">
+      <div class="comparison-bg" id="comparison-bg" style="inset:0;position:absolute;overflow:hidden"></div>
+      <div class="comparison-fg" style="position:absolute;top:0;left:0;bottom:0;width:50%;overflow:hidden">
+        <div id="comparison-fg-inner" style="width:100%;height:100%"></div>
+      </div>
+      <div class="comparison-divider"></div>
+    </div>
+
+    <!-- Progress bar -->
+    <div id="progress-wrap" class="progress-wrap">
+      <div class="progress-header">
+        <span class="progress-stage">Uploading…</span>
+        <span class="progress-pct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Export bar -->
+    <div id="export-bar" class="export-bar">
+      <div class="export-group">
+        <span class="export-group-label">Vector</span>
+        <button class="export-btn primary" data-export="svg" disabled>SVG</button>
+        <button class="export-btn" data-export="eps" disabled>EPS</button>
+        <button class="export-btn" data-export="pdf" disabled>PDF</button>
+        <button class="export-btn" data-export="dxf" disabled>DXF</button>
+      </div>
+      <div class="export-group">
+        <span class="export-group-label">Raster</span>
+        <button class="export-btn" data-export="png" disabled>PNG</button>
+        <button class="export-btn" data-export="jpg" disabled>JPG</button>
+        <button class="export-btn" data-export="gif" disabled>GIF</button>
+        <button class="export-btn" data-export="bmp" disabled>BMP</button>
+        <button class="export-btn" data-export="tiff" disabled>TIFF</button>
+      </div>
+      <div class="export-options">
+        <label for="png-resolution" class="text-xs text-dim">PNG scale</label>
+        <select id="png-resolution" style="width:72px">
+          <option value="1">1×</option>
+          <option value="2" selected>2×</option>
+          <option value="4">4×</option>
+        </select>
+        <label for="jpg-quality" class="text-xs text-dim">JPG q</label>
+        <input type="range" id="jpg-quality" min="60" max="100" value="90" style="width:70px" title="JPG quality">
+        <span id="jpg-quality-val" class="text-xs text-dim">90</span>
+      </div>
+    </div>
+
+  </section>
+</div>
+
+<!-- ── Toast container (injected by JS) ────────────────────────────────────── -->
+
+<script src="/static/js/app.js"></script>
+
+<script>
+/* Extra inline wiring for sliders in the side panel */
+document.addEventListener('DOMContentLoaded', () => {
+  const sliderPairs = [
+    ['color-count',   'color-count-val'],
+    ['detail-level',  'detail-val'],
+    ['smoothing',     'smoothing-val'],
+    ['despeckle',     'despeckle-val'],
+    ['path-optimize', 'pathopt-val'],
+    ['corner-thresh', 'corner-val'],
+  ];
+  sliderPairs.forEach(([id, valId]) => {
+    const slider = document.getElementById(id);
+    const valEl  = document.getElementById(valId);
+    if (!slider || !valEl) return;
+    slider.addEventListener('input', () => { valEl.textContent = slider.value; });
+  });
+
+  // JPG quality live label
+  const jq = document.getElementById('jpg-quality');
+  const jqv = document.getElementById('jpg-quality-val');
+  if (jq && jqv) jq.addEventListener('input', () => { jqv.textContent = jq.value; });
+
+  // Auto colors disables slider
+  const autoCb = document.getElementById('auto-colors');
+  const colorSlider = document.getElementById('color-count');
+  const colorVal    = document.getElementById('color-count-val');
+  if (autoCb && colorSlider && colorVal) {
+    autoCb.addEventListener('change', () => {
+      colorSlider.disabled = autoCb.checked;
+      colorVal.textContent = autoCb.checked ? 'Auto' : colorSlider.value;
+    });
+  }
+
+  // Accordion toggle
+  const advHeader = document.getElementById('adv-header');
+  const advBody   = document.getElementById('adv-body');
+  if (advHeader && advBody) {
+    advHeader.addEventListener('click', () => {
+      const open = advHeader.classList.toggle('open');
+      advBody.classList.toggle('open', open);
+    });
+  }
+
+  // Show/hide work area elements based on upload
+  const workArea      = document.getElementById('work-area');
+  const viewToggleWrap = document.getElementById('view-toggle-wrap');
+  const newImgBtn      = document.getElementById('btn-new-image');
+
+  const observer = new MutationObserver(() => {
+    const isVisible = workArea && !workArea.classList.contains('hidden');
+    if (viewToggleWrap) viewToggleWrap.classList.toggle('hidden', !isVisible);
+    if (newImgBtn)      newImgBtn.classList.toggle('hidden', !isVisible);
+  });
+  if (workArea) observer.observe(workArea, { attributes: true, attributeFilter: ['class'] });
+});
+</script>
+
+</body>
+</html>
