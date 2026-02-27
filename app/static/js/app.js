@@ -99,7 +99,7 @@ class ImageUploader {
   }
   _handle(file) {
     if (!file.type.startsWith('image/')) { toast.error('Not an image file.'); return; }
-    if (file.size > 50 * 1024 * 1024) { toast.error('File too large (max 50 MB).'); return; }
+    if (file.size > 100 * 1024 * 1024) { toast.error('File too large (max 100 MB).'); return; }
     const reader = new FileReader();
     reader.onload = e => this.onFile(file, e.target.result);
     reader.readAsDataURL(file);
@@ -587,8 +587,8 @@ class BatchProcessor {
           const d = await r.json();
           this.jobs.set(idx, { status: d.status === 'done' ? 'done' : d.status === 'error' ? 'error' : 'processing', progress: d.progress || 0, jobId });
           this._renderTable();
-          if (d.status === 'done')  { clearInterval(iv); resolve(); }
-          if (d.status === 'error') { clearInterval(iv); reject(new Error(d.error || 'Failed')); }
+          if (d.status === 'done')       { clearInterval(iv); resolve(); }
+          else if (d.status === 'error') { clearInterval(iv); reject(new Error(d.error || 'Failed')); }
         } catch (e) { clearInterval(iv); reject(e); }
       }, 600);
     });
@@ -768,10 +768,6 @@ class VectorEasyApp {
         if (this.progress) this.progress.error(d.error || 'Processing failed');
         toast.error(d.error || 'Processing failed');
       }
-    } catch (_) {}
-  }
-
-  _onDone(data) {
     if (this.progress) this.progress.complete('Done!');
     this.colors = data.colors || [];
     this.layers = data.layers || [];
@@ -823,8 +819,8 @@ class VectorEasyApp {
         try { d = JSON.parse(e.data); } catch { return; }
         if (!d.job_id || d.job_id !== this.jobId) return;
         if (this.progress) this.progress.update(d.stage || 'Processing…', d.progress || 0);
-        if (d.status === 'done') { this._stopPolling(); this._onDone(d); }
-        if (d.status === 'error') { this._stopPolling(); this.progress?.error(d.error || 'Error'); toast.error(d.error || 'Error'); }
+        if (d.status === 'done')       { this._stopPolling(); this._onDone(d); }
+        else if (d.status === 'error') { this._stopPolling(); this.progress?.error(d.error || 'Error'); toast.error(d.error || 'Error'); }
       };
       this._ws.onerror = () => { this._ws = null; }; // fall back to polling
     } catch (_) {}
