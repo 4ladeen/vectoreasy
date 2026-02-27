@@ -3,316 +3,405 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VectorEasy – Image Vectorizer</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
-    header { background: #1a1a2e; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; border-bottom: 2px solid #7c3aed; }
-    header h1 { font-size: 1.5rem; color: #a78bfa; }
-    .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
-    .card { background: #1a1a2e; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid #2d2d4e; }
-    .card h2 { font-size: 1.1rem; color: #a78bfa; margin-bottom: 1rem; }
-    .drop-zone { border: 2px dashed #7c3aed; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: background 0.2s; }
-    .drop-zone:hover, .drop-zone.active { background: #2d1b69; }
-    .drop-zone p { color: #9ca3af; }
-    .btn { background: #7c3aed; color: #fff; border: none; padding: 0.6rem 1.4rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; }
-    .btn:hover { background: #6d28d9; }
-    .btn:disabled { background: #4b5563; cursor: not-allowed; }
-    .btn-sm { padding: 0.4rem 0.9rem; font-size: 0.8rem; }
-    label { display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 0.3rem; }
-    select, input[type=range], input[type=number] { background: #111827; color: #e0e0e0; border: 1px solid #374151; border-radius: 6px; padding: 0.4rem 0.6rem; width: 100%; }
-    .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
-    .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    .preview-box { background: #111827; border-radius: 8px; overflow: hidden; min-height: 200px; display: flex; align-items: center; justify-content: center; }
-    .preview-box img, .preview-box svg { max-width: 100%; max-height: 400px; object-fit: contain; }
-    .palette-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
-    .swatch { width: 28px; height: 28px; border-radius: 4px; border: 2px solid #2d2d4e; cursor: pointer; title: attr(data-color); }
-    .download-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
-    .progress-bar { height: 6px; background: #374151; border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
-    .progress-fill { height: 100%; background: #7c3aed; transition: width 0.3s; }
-    .status-msg { font-size: 0.85rem; color: #9ca3af; margin-top: 0.3rem; }
-    #batch-list { list-style: none; margin-top: 0.5rem; }
-    #batch-list li { display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid #2d2d4e; font-size: 0.85rem; }
-    .tag { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: #374151; }
-    .tag.done { background: #065f46; }
-    .tag.error { background: #7f1d1d; }
-    .tag.processing { background: #1e3a5f; }
-  </style>
+  <title>VectorEasy — Image Vectorizer</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<header>
-  <span style="font-size:2rem">⚡</span>
-  <h1>VectorEasy</h1>
-  <span style="color:#6b7280; font-size:0.85rem">Raster → Vector in seconds</span>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="7" fill="#161b22"/>
+      <path d="M7 8L16 24L25 8" stroke="#58a6ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M11 8L16 17" stroke="#a371f7" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+    </svg>
+    Vector<span>Easy</span>
+  </a>
+  <span class="tagline">Raster → Vector in seconds</span>
+  <div class="header-spacer"></div>
+
+  <!-- View toggle (shown after upload) -->
+  <div id="view-toggle-wrap" class="view-toggle hidden">
+    <button class="view-toggle-btn active" data-view="split">Split</button>
+    <button class="view-toggle-btn" data-view="compare">Compare</button>
+    <button class="view-toggle-btn" data-view="original">Original</button>
+    <button class="view-toggle-btn" data-view="vector">Vector</button>
+  </div>
+
+  <button class="nav-btn hidden" id="btn-new-image">↩ New Image</button>
+  <button class="nav-btn" id="btn-batch-tab">Batch</button>
 </header>
 
-<div class="container">
-  <!-- Upload -->
-  <div class="card">
-    <h2>Upload Image</h2>
-    <div class="drop-zone" id="dropZone">
-      <p>Drop an image here, paste from clipboard, or <label for="fileInput" style="color:#a78bfa; cursor:pointer; display:inline">click to browse</label></p>
-      <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+<!-- ── Upload Section ──────────────────────────────────────────────────────── -->
+<div id="upload-section" style="padding:2.5rem 1.5rem; max-width:680px; margin:0 auto;">
+
+  <!-- Upload zone -->
+  <div id="upload-zone" class="upload-zone" tabindex="0" role="button" aria-label="Upload image">
+    <div class="upload-icon">
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="4" y="10" width="40" height="30" rx="5" stroke-opacity=".4"/>
+        <path d="M24 32V18M24 18L17 25M24 18L31 25" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M14 38c-4 0-7-3-7-7s3-7 7-7" stroke-opacity=".5" stroke-linecap="round"/>
+      </svg>
     </div>
-    <div id="batchSection" style="display:none; margin-top:1rem;">
-      <strong style="font-size:0.9rem">Batch Queue:</strong>
-      <ul id="batch-list"></ul>
-      <button class="btn" id="batchBtn" style="margin-top:0.5rem">Process All</button>
-    </div>
+    <div class="upload-title">Drop an image here</div>
+    <div class="upload-sub">or click to browse &nbsp;·&nbsp; Ctrl+V to paste</div>
+    <div class="upload-formats">PNG · JPG · WebP · GIF · BMP · TIFF · SVG &nbsp;·&nbsp; max 50 MB</div>
   </div>
 
-  <!-- Settings -->
-  <div class="card">
-    <h2>Settings</h2>
-    <div class="settings-grid">
-      <div>
-        <label>Mode</label>
-        <select id="mode">
-          <option value="auto">Auto-detect</option>
-          <option value="photo">Photo</option>
-          <option value="logo">Logo / Illustration</option>
-          <option value="line_art">Line Art</option>
-          <option value="pixel_art">Pixel Art</option>
-        </select>
-      </div>
-      <div>
-        <label>Colors: <span id="colorVal">16</span></label>
-        <input type="range" id="nColors" min="2" max="64" value="16"
-               oninput="document.getElementById('colorVal').textContent=this.value">
-      </div>
-      <div>
-        <label>Detail Level</label>
-        <select id="detail">
-          <option value="low">Low</option>
-          <option value="medium" selected>Medium</option>
-          <option value="high">High</option>
-          <option value="ultra">Ultra</option>
-        </select>
-      </div>
-      <div>
-        <label>Quantize Method</label>
-        <select id="quantizeMethod">
-          <option value="kmeans">K-Means</option>
-          <option value="median_cut">Median Cut</option>
-          <option value="octree">Octree</option>
-        </select>
-      </div>
-      <div style="display:flex; align-items:center; gap:0.5rem; padding-top:1.2rem">
-        <input type="checkbox" id="smooth" checked>
-        <label for="smooth" style="margin:0">Smooth curves</label>
-      </div>
-      <div style="display:flex; align-items:center; gap:0.5rem; padding-top:1.2rem">
-        <input type="checkbox" id="upscale" checked>
-        <label for="upscale" style="margin:0">Auto-upscale small images</label>
-      </div>
-    </div>
-    <div style="margin-top:1rem">
-      <button class="btn" id="vectorizeBtn" disabled>Vectorize</button>
-    </div>
-    <div class="progress-bar" id="progressBar" style="display:none">
-      <div class="progress-fill" id="progressFill" style="width:0%"></div>
-    </div>
-    <div class="status-msg" id="statusMsg"></div>
+  <!-- Tabs: Single / Batch -->
+  <div class="tabs mt-3">
+    <button class="tab-btn active" data-tab="single">Single Image</button>
+    <button class="tab-btn" data-tab="batch">Batch Mode</button>
   </div>
 
-  <!-- Preview -->
-  <div class="card" id="previewCard" style="display:none">
-    <h2>Preview</h2>
-    <div class="preview-grid">
-      <div>
-        <p style="font-size:0.8rem; color:#6b7280; margin-bottom:0.5rem">Original</p>
-        <div class="preview-box"><img id="origPreview" alt="original"></div>
+  <!-- Batch pane (pre-upload view) -->
+  <div class="tab-pane" id="tab-batch" style="padding-top:.75rem">
+    <div id="batch-panel" class="batch-panel">
+      <div class="batch-drop">
+        <div style="font-size:1.5rem;margin-bottom:.4rem">📂</div>
+        <div style="font-size:.85rem;font-weight:600">Drop multiple images here</div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.2rem">or click to browse</div>
       </div>
-      <div>
-        <p style="font-size:0.8rem; color:#6b7280; margin-bottom:0.5rem">Vector Result</p>
-        <div class="preview-box" id="svgPreview"></div>
+      <div style="padding:.5rem .75rem;display:flex;gap:.5rem;align-items:center;border-bottom:1px solid var(--border)">
+        <button id="batch-start" class="btn btn-sm btn-success">▶ Process All</button>
+        <button id="batch-download-zip" class="btn btn-sm btn-outline">⬇ Download ZIP</button>
+        <span class="spacer"></span>
+        <span id="batch-count" class="text-xs text-dim">0 files</span>
       </div>
-    </div>
-    <div style="margin-top:1rem">
-      <strong style="font-size:0.85rem">Palette</strong>
-      <div class="palette-row" id="paletteRow"></div>
-    </div>
-    <div style="margin-top:1rem">
-      <strong style="font-size:0.85rem">Download</strong>
-      <div class="download-row" id="downloadRow"></div>
+      <div style="overflow-x:auto">
+        <table class="batch-table">
+          <thead><tr>
+            <th>File</th><th>Size</th><th>Status</th><th>Progress</th><th>Download</th>
+          </tr></thead>
+          <tbody id="batch-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- ── Work Area (shown after upload) ──────────────────────────────────────── -->
+<div id="work-area" class="main-content hidden">
+
+  <!-- ── Side Panel ──────────────────────────────────────────────────────── -->
+  <aside class="side-panel" id="controls-panel">
+
+    <!-- File info -->
+    <div class="ctrl-section" style="padding:.6rem 1rem">
+      <div class="flex items-center justify-between">
+        <span id="current-filename" class="text-sm font-bold" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">filename.png</span>
+        <span id="current-filesize" class="text-xs text-dim">0 KB</span>
+      </div>
+    </div>
+
+    <!-- Mode selector -->
+    <div class="ctrl-section">
+      <div class="card-title">Mode</div>
+      <div class="mode-grid">
+        <label class="mode-btn selected">
+          <input type="radio" name="mode" value="color" checked>
+          <span class="mode-icon">🎨</span>
+          <span class="mode-name">Color</span>
+          <span class="mode-desc">Full color</span>
+        </label>
+        <label class="mode-btn">
+          <input type="radio" name="mode" value="bw">
+          <span class="mode-icon">⬛</span>
+          <span class="mode-name">B&amp;W</span>
+          <span class="mode-desc">2 colors</span>
+        </label>
+        <label class="mode-btn">
+          <input type="radio" name="mode" value="grayscale">
+          <span class="mode-icon">🩶</span>
+          <span class="mode-name">Gray</span>
+          <span class="mode-desc">Shades</span>
+        </label>
+        <label class="mode-btn">
+          <input type="radio" name="mode" value="logo">
+          <span class="mode-icon">🏷️</span>
+          <span class="mode-name">Logo</span>
+          <span class="mode-desc">Clean shapes</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Colors -->
+    <div class="ctrl-section">
+      <div class="ctrl-label">
+        <span>Colors</span>
+        <span class="val" id="color-count-val">16</span>
+      </div>
+      <input type="range" id="color-count" min="2" max="64" value="16" step="1">
+      <label class="checkbox-wrap mt-2">
+        <input type="checkbox" id="auto-colors">
+        Auto detect
+      </label>
+    </div>
+
+    <!-- Detail level -->
+    <div class="ctrl-section">
+      <div class="ctrl-label">
+        <span>Detail Level</span>
+        <span class="val" id="detail-val">3</span>
+      </div>
+      <input type="range" id="detail-level" min="1" max="5" value="3" step="1">
+    </div>
+
+    <!-- Smoothing -->
+    <div class="ctrl-section">
+      <div class="ctrl-label">
+        <span>Smoothing</span>
+        <span class="val" id="smoothing-val">50</span>
+      </div>
+      <input type="range" id="smoothing" min="0" max="100" value="50" step="1">
+    </div>
+
+    <!-- Background removal -->
+    <div class="ctrl-section">
+      <div class="toggle-wrap">
+        <span class="toggle-label">Remove Background</span>
+        <label class="toggle">
+          <input type="checkbox" id="remove-bg">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Advanced (accordion) -->
+    <div class="accordion-header" id="adv-header">
+      <span>Advanced Settings</span>
+      <span class="accordion-arrow">▼</span>
+    </div>
+    <div class="accordion-body" id="adv-body">
+      <div class="accordion-inner">
+        <div class="ctrl-label">
+          <span>Despeckle</span>
+          <span class="val" id="despeckle-val">2</span>
+        </div>
+        <input type="range" id="despeckle" min="0" max="10" value="2" step="1">
+      </div>
+      <div class="accordion-inner">
+        <div class="ctrl-label">
+          <span>Path Optimization</span>
+          <span class="val" id="pathopt-val">3</span>
+        </div>
+        <input type="range" id="path-optimize" min="1" max="5" value="3" step="1">
+      </div>
+      <div class="accordion-inner">
+        <div class="ctrl-label">
+          <span>Corner Threshold</span>
+          <span class="val" id="corner-val">60</span>
+        </div>
+        <input type="range" id="corner-thresh" min="0" max="180" value="60" step="5">
+      </div>
+    </div>
+
+    <!-- Re-process button -->
+    <div class="ctrl-section">
+      <button id="btn-reprocess" class="btn btn-block">⚡ Re-vectorize</button>
+    </div>
+
+    <!-- ── Color Palette ───────────────────────────────────────────────── -->
+    <div class="palette-section">
+      <div class="card-title">Color Palette</div>
+      <div id="palette-row" class="palette-row">
+        <span class="text-dim text-xs">No colors yet</span>
+      </div>
+    </div>
+
+    <!-- ── Layers ──────────────────────────────────────────────────────── -->
+    <div class="ctrl-section" style="padding:.6rem 0 0">
+      <div class="card-title" style="padding:0 .75rem .5rem">Layers</div>
+      <ul id="layer-list" class="layer-list">
+        <li style="padding:.6rem .75rem;color:var(--text-dim);font-size:.78rem">No layers</li>
+      </ul>
+    </div>
+
+    <!-- ── Segment Tools ───────────────────────────────────────────────── -->
+    <div class="seg-tools">
+      <input type="color" id="recolor-pick" value="#58a6ff" title="Pick color" style="width:32px;height:28px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;padding:2px;">
+      <button id="btn-recolor" class="btn btn-sm btn-outline" title="Recolor selected layer">Recolor</button>
+      <button id="btn-delete-layer" class="btn btn-sm btn-danger" title="Delete selected layer">Delete</button>
+    </div>
+
+  </aside>
+
+  <!-- ── Preview Area ────────────────────────────────────────────────────── -->
+  <section class="work-area">
+
+    <!-- Toolbar -->
+    <div class="toolbar" id="view-toggle-wrap2">
+      <div class="view-toggle">
+        <button class="view-toggle-btn active" data-view="split">⊞ Split</button>
+        <button class="view-toggle-btn" data-view="compare">↔ Compare</button>
+        <button class="view-toggle-btn" data-view="original">Original</button>
+        <button class="view-toggle-btn" data-view="vector">Vector</button>
+      </div>
+      <span class="spacer"></span>
+      <span class="drag-hint">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        Drag result to desktop
+      </span>
+    </div>
+
+    <!-- Preview panels (split) -->
+    <div id="preview-panels" class="preview-container">
+      <div class="preview-panels">
+
+        <!-- Original -->
+        <div class="preview-panel" id="panel-original">
+          <span class="preview-panel-label">Original</span>
+          <div class="preview-canvas-wrap">
+            <div class="preview-empty">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9l4-4 5 5 4-4 5 5"/></svg>
+              <div>No image loaded</div>
+            </div>
+          </div>
+          <div class="zoom-controls">
+            <button class="zoom-btn" data-action="out" title="Zoom out">−</button>
+            <span class="zoom-indicator">100%</span>
+            <button class="zoom-btn" data-action="in" title="Zoom in">+</button>
+            <button class="zoom-btn" data-action="fit" title="Fit to screen">⤢</button>
+          </div>
+        </div>
+
+        <!-- Vectorized -->
+        <div class="preview-panel" id="panel-vectorized">
+          <span class="preview-panel-label">Vectorized</span>
+          <div class="preview-canvas-wrap">
+            <div class="preview-empty">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="M8 10 Q12 6 16 14" stroke-linecap="round"/></svg>
+              <div>Vectorization result</div>
+            </div>
+          </div>
+          <div class="zoom-controls">
+            <button class="zoom-btn" data-action="out" title="Zoom out">−</button>
+            <span class="zoom-indicator">100%</span>
+            <button class="zoom-btn" data-action="in" title="Zoom in">+</button>
+            <button class="zoom-btn" data-action="fit" title="Fit to screen">⤢</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Comparison slider (hidden until Compare mode) -->
+    <div id="comparison-container" class="comparison-container">
+      <div class="comparison-bg" id="comparison-bg" style="inset:0;position:absolute;overflow:hidden"></div>
+      <div class="comparison-fg" style="position:absolute;top:0;left:0;bottom:0;width:50%;overflow:hidden">
+        <div id="comparison-fg-inner" style="width:100%;height:100%"></div>
+      </div>
+      <div class="comparison-divider"></div>
+    </div>
+
+    <!-- Progress bar -->
+    <div id="progress-wrap" class="progress-wrap">
+      <div class="progress-header">
+        <span class="progress-stage">Uploading…</span>
+        <span class="progress-pct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Export bar -->
+    <div id="export-bar" class="export-bar">
+      <div class="export-group">
+        <span class="export-group-label">Vector</span>
+        <button class="export-btn primary" data-export="svg" disabled>SVG</button>
+        <button class="export-btn" data-export="eps" disabled>EPS</button>
+        <button class="export-btn" data-export="pdf" disabled>PDF</button>
+        <button class="export-btn" data-export="dxf" disabled>DXF</button>
+      </div>
+      <div class="export-group">
+        <span class="export-group-label">Raster</span>
+        <button class="export-btn" data-export="png" disabled>PNG</button>
+        <button class="export-btn" data-export="jpg" disabled>JPG</button>
+        <button class="export-btn" data-export="gif" disabled>GIF</button>
+        <button class="export-btn" data-export="bmp" disabled>BMP</button>
+        <button class="export-btn" data-export="tiff" disabled>TIFF</button>
+      </div>
+      <div class="export-options">
+        <label for="png-resolution" class="text-xs text-dim">PNG scale</label>
+        <select id="png-resolution" style="width:72px">
+          <option value="1">1×</option>
+          <option value="2" selected>2×</option>
+          <option value="4">4×</option>
+        </select>
+        <label for="jpg-quality" class="text-xs text-dim">JPG q</label>
+        <input type="range" id="jpg-quality" min="60" max="100" value="90" style="width:70px" title="JPG quality">
+        <span id="jpg-quality-val" class="text-xs text-dim">90</span>
+      </div>
+    </div>
+
+  </section>
+</div>
+
+<!-- ── Toast container (injected by JS) ────────────────────────────────────── -->
+
+<script src="/static/js/app.js"></script>
+
 <script>
-const FORMATS = ['svg','png','jpg','pdf','eps','dxf','gif','bmp','tiff'];
-let currentJobId = null;
-let selectedFile = null;
+/* Extra inline wiring for sliders in the side panel */
+document.addEventListener('DOMContentLoaded', () => {
+  const sliderPairs = [
+    ['color-count',   'color-count-val'],
+    ['detail-level',  'detail-val'],
+    ['smoothing',     'smoothing-val'],
+    ['despeckle',     'despeckle-val'],
+    ['path-optimize', 'pathopt-val'],
+    ['corner-thresh', 'corner-val'],
+  ];
+  sliderPairs.forEach(([id, valId]) => {
+    const slider = document.getElementById(id);
+    const valEl  = document.getElementById(valId);
+    if (!slider || !valEl) return;
+    slider.addEventListener('input', () => { valEl.textContent = slider.value; });
+  });
 
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const vectorizeBtn = document.getElementById('vectorizeBtn');
-const origPreview = document.getElementById('origPreview');
-const svgPreview = document.getElementById('svgPreview');
-const previewCard = document.getElementById('previewCard');
-const progressBar = document.getElementById('progressBar');
-const progressFill = document.getElementById('progressFill');
-const statusMsg = document.getElementById('statusMsg');
-const paletteRow = document.getElementById('paletteRow');
-const downloadRow = document.getElementById('downloadRow');
+  // JPG quality live label
+  const jq = document.getElementById('jpg-quality');
+  const jqv = document.getElementById('jpg-quality-val');
+  if (jq && jqv) jq.addEventListener('input', () => { jqv.textContent = jq.value; });
 
-function setFile(file) {
-  selectedFile = file;
-  vectorizeBtn.disabled = false;
-  const reader = new FileReader();
-  reader.onload = e => { origPreview.src = e.target.result; };
-  reader.readAsDataURL(file);
-  statusMsg.textContent = `Selected: ${file.name}`;
-}
-
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('active'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('active');
-  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
-  if (files.length === 1) setFile(files[0]);
-  else if (files.length > 1) setupBatch(files);
-});
-fileInput.addEventListener('change', () => {
-  const files = [...fileInput.files];
-  if (files.length === 1) setFile(files[0]);
-  else if (files.length > 1) setupBatch(files);
-});
-
-// Clipboard paste
-document.addEventListener('paste', async e => {
-  const items = [...e.clipboardData.items];
-  const imgItem = items.find(i => i.type.startsWith('image/'));
-  if (!imgItem) return;
-  const blob = imgItem.getAsFile();
-  setFile(blob);
-});
-
-function getSettings() {
-  return {
-    mode: document.getElementById('mode').value,
-    n_colors: parseInt(document.getElementById('nColors').value),
-    detail: document.getElementById('detail').value,
-    quantize_method: document.getElementById('quantizeMethod').value,
-    smooth: document.getElementById('smooth').checked,
-    upscale: document.getElementById('upscale').checked,
-  };
-}
-
-async function poll(jobId) {
-  for (let i = 0; i < 300; i++) {
-    await new Promise(r => setTimeout(r, 800));
-    const res = await fetch(`/api/status/${jobId}`);
-    const data = await res.json();
-    const pct = data.progress || 0;
-    progressFill.style.width = pct + '%';
-    statusMsg.textContent = data.stage || 'Processing…';
-    if (data.status === 'done') return true;
-    if (data.status === 'error') { statusMsg.textContent = 'Error: ' + data.error; return false; }
+  // Auto colors disables slider
+  const autoCb = document.getElementById('auto-colors');
+  const colorSlider = document.getElementById('color-count');
+  const colorVal    = document.getElementById('color-count-val');
+  if (autoCb && colorSlider && colorVal) {
+    autoCb.addEventListener('change', () => {
+      colorSlider.disabled = autoCb.checked;
+      colorVal.textContent = autoCb.checked ? 'Auto' : colorSlider.value;
+    });
   }
-  statusMsg.textContent = 'Timed out.';
-  return false;
-}
 
-vectorizeBtn.addEventListener('click', async () => {
-  if (!selectedFile) return;
-  vectorizeBtn.disabled = true;
-  progressBar.style.display = 'block';
-  progressFill.style.width = '0%';
-  statusMsg.textContent = 'Uploading…';
+  // Accordion toggle
+  const advHeader = document.getElementById('adv-header');
+  const advBody   = document.getElementById('adv-body');
+  if (advHeader && advBody) {
+    advHeader.addEventListener('click', () => {
+      const open = advHeader.classList.toggle('open');
+      advBody.classList.toggle('open', open);
+    });
+  }
 
-  const fd = new FormData();
-  fd.append('file', selectedFile);
-  fd.append('settings', JSON.stringify(getSettings()));
+  // Show/hide work area elements based on upload
+  const workArea      = document.getElementById('work-area');
+  const viewToggleWrap = document.getElementById('view-toggle-wrap');
+  const newImgBtn      = document.getElementById('btn-new-image');
 
-  const res = await fetch('/api/vectorize', { method: 'POST', body: fd });
-  const data = await res.json();
-  if (!res.ok) { statusMsg.textContent = 'Upload error: ' + (data.detail || res.status); vectorizeBtn.disabled = false; return; }
-
-  currentJobId = data.job_id;
-  const ok = await poll(currentJobId);
-  if (!ok) { vectorizeBtn.disabled = false; return; }
-
-  // Fetch result
-  const rRes = await fetch(`/api/result/${currentJobId}`);
-  const rData = await rRes.json();
-
-  svgPreview.innerHTML = rData.svg;
-  previewCard.style.display = 'block';
-
-  // Palette
-  paletteRow.innerHTML = '';
-  (rData.palette || []).forEach(c => {
-    const s = document.createElement('div');
-    s.className = 'swatch';
-    s.style.background = c;
-    s.title = c;
-    paletteRow.appendChild(s);
+  const observer = new MutationObserver(() => {
+    const isVisible = workArea && !workArea.classList.contains('hidden');
+    if (viewToggleWrap) viewToggleWrap.classList.toggle('hidden', !isVisible);
+    if (newImgBtn)      newImgBtn.classList.toggle('hidden', !isVisible);
   });
-
-  // Downloads
-  downloadRow.innerHTML = '';
-  FORMATS.forEach(fmt => {
-    const b = document.createElement('button');
-    b.className = 'btn btn-sm';
-    b.textContent = fmt.toUpperCase();
-    b.onclick = () => { window.location = `/api/download/${currentJobId}/${fmt}`; };
-    downloadRow.appendChild(b);
-  });
-
-  vectorizeBtn.disabled = false;
-  statusMsg.textContent = `Done! ${rData.width}×${rData.height}px → ${rData.palette?.length} colors`;
-  progressFill.style.width = '100%';
+  if (workArea) observer.observe(workArea, { attributes: true, attributeFilter: ['class'] });
 });
-
-// Batch
-function setupBatch(files) {
-  document.getElementById('batchSection').style.display = 'block';
-  const list = document.getElementById('batch-list');
-  list.innerHTML = '';
-  files.forEach(f => {
-    const li = document.createElement('li');
-    li.textContent = f.name;
-    const tag = document.createElement('span');
-    tag.className = 'tag';
-    tag.textContent = 'queued';
-    li.appendChild(tag);
-    list.appendChild(li);
-  });
-
-  document.getElementById('batchBtn').onclick = async () => {
-    const fd = new FormData();
-    files.forEach(f => fd.append('files', f));
-    fd.append('settings', JSON.stringify(getSettings()));
-    const res = await fetch('/api/batch', { method: 'POST', body: fd });
-    const data = await res.json();
-    const batchId = data.batch_id;
-    // Poll batch status
-    const pollBatch = async () => {
-      const st = await (await fetch(`/api/status/${batchId}`)).json();
-      const jobs = st.jobs || {};
-      [...list.children].forEach((li, i) => {
-        const jid = Object.keys(jobs)[i];
-        if (!jid) return;
-        const tag = li.querySelector('.tag');
-        tag.textContent = jobs[jid].status;
-        tag.className = 'tag ' + jobs[jid].status;
-      });
-      if (st.percent < 100) setTimeout(pollBatch, 1000);
-      else {
-        const dlBtn = document.createElement('button');
-        dlBtn.className = 'btn';
-        dlBtn.textContent = 'Download ZIP';
-        dlBtn.style.marginLeft = '1rem';
-        dlBtn.onclick = () => window.location = `/api/batch/download/${batchId}`;
-        document.getElementById('batchBtn').replaceWith(dlBtn);
-      }
-    };
-    pollBatch();
-  };
-}
 </script>
+
 </body>
 </html>
