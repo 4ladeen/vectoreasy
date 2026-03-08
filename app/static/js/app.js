@@ -822,12 +822,12 @@ class VectorEasyApp {
     try {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
       this._ws = new WebSocket(`${proto}://${location.host}/ws`);
-      this._ws.onmessage = e => {
+      this._ws.onmessage = async e => {
         let d;
         try { d = JSON.parse(e.data); } catch { return; }
         if (!d.job_id || d.job_id !== this.jobId) return;
         if (this.progress) this.progress.update(d.stage || 'Processing…', d.progress || 0);
-        if (d.status === 'done')       { this._stopPolling(); this._fetchAndShowResult(); }
+        if (d.status === 'done')       { this._stopPolling(); await this._fetchAndShowResult(); }
         else if (d.status === 'error') { this._stopPolling(); this.progress?.error(d.error || 'Error'); toast.error(d.error || 'Error'); }
       };
       this._ws.onerror = () => { this._ws = null; }; // fall back to polling
