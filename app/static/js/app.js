@@ -427,7 +427,7 @@ class SegmentEditor {
       await fetch('/api/segment/recolor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: this.app.jobId, layer: idx, color })
+        body: JSON.stringify({ job_id: this.app.jobId, index: idx, color })
       });
       this.app.refreshResult();
     } catch (e) { toast.error('Recolor failed: ' + e.message); }
@@ -438,7 +438,7 @@ class SegmentEditor {
       await fetch('/api/segment/merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: this.app.jobId, layer1: idx1, layer2: idx2 })
+        body: JSON.stringify({ job_id: this.app.jobId, indices: [idx1, idx2] })
       });
       this.app.refreshResult();
     } catch (e) { toast.error('Merge failed: ' + e.message); }
@@ -449,7 +449,7 @@ class SegmentEditor {
       await fetch('/api/segment/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: this.app.jobId, layer: idx })
+        body: JSON.stringify({ job_id: this.app.jobId, index: idx })
       });
       this.app.refreshResult();
     } catch (e) { toast.error('Delete failed: ' + e.message); }
@@ -762,7 +762,7 @@ class VectorEasyApp {
       if (this.progress) this.progress.update(d.stage || 'Processing…', d.progress || 0);
       if (d.status === 'done') {
         this._stopPolling();
-        this._onDone(d);
+        await this._fetchAndShowResult();
       } else if (d.status === 'error') {
         this._stopPolling();
         if (this.progress) this.progress.error(d.error || 'Processing failed');
@@ -771,18 +771,28 @@ class VectorEasyApp {
     } catch (e) { console.warn('Poll error:', e); }
   }
 
+  async _fetchAndShowResult() {
+    if (!this.jobId) return;
+    try {
+      const r = await fetch(`/api/result/${this.jobId}`);
+      if (!r.ok) { toast.error('Failed to fetch result'); return; }
+      const d = await r.json();
+      this._onDone(d);
+    } catch (e) { toast.error('Failed to fetch result: ' + e.message); }
+  }
+
   _onDone(d) {
     if (this.progress) this.progress.complete('Done!');
-    this.colors = d.colors || [];
-    this.layers = d.layers || [];
-    this.resultSvg = d.svg_url || null;
+    this.colors = d.palette || [];
+    this.layers = (d.palette || []).map((c, i) => ({ color: c, name: 'Layer ' + (i + 1) }));
+    this.resultSvg = d.svg || null;
 
     if (this.palette)      this.palette.render(this.colors);
     if (this.layers_panel) this.layers_panel.render(this.layers);
     if (this.exportBar)    this.exportBar.setEnabled(true);
 
     if (this.vecPreview && this.resultSvg) {
-      this.vecPreview.load(this.resultSvg, true);
+      this.vecPreview.loadSvgString(this.resultSvg);
     }
     toast.success('Vectorization complete!');
     this._enableDrag();
@@ -790,10 +800,7 @@ class VectorEasyApp {
   }
 
   async refreshResult() {
-    if (!this.jobId) return;
-    const r = await fetch(`/api/status/${this.jobId}`);
-    const d = await r.json();
-    this._onDone(d);
+    await this._fetchAndShowResult();
   }
 
   /* ── Draggable output ─────────────────────────────────────────────────────── */
@@ -820,7 +827,7 @@ class VectorEasyApp {
         try { d = JSON.parse(e.data); } catch { return; }
         if (!d.job_id || d.job_id !== this.jobId) return;
         if (this.progress) this.progress.update(d.stage || 'Processing…', d.progress || 0);
-        if (d.status === 'done')       { this._stopPolling(); this._onDone(d); }
+        if (d.status === 'done')       { this._stopPolling(); this._fetchAndShowResult(); }
         else if (d.status === 'error') { this._stopPolling(); this.progress?.error(d.error || 'Error'); toast.error(d.error || 'Error'); }
       };
       this._ws.onerror = () => { this._ws = null; }; // fall back to polling

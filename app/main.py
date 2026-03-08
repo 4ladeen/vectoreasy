@@ -17,6 +17,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     Request,
     UploadFile,
 )
@@ -24,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.batch.processor import BatchProcessor
 from app.vectorizer.engine import VectorizationEngine
@@ -54,6 +56,8 @@ templates = Jinja2Templates(directory="app/templates")
 
 _JOBS: dict[str, dict[str, Any]] = {}
 _BATCH_PROCESSORS: dict[str, BatchProcessor] = {}
+_WS_CLIENTS: set[WebSocket] = set()
+_LOOP: asyncio.AbstractEventLoop | None = None
 
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
 
@@ -64,6 +68,32 @@ MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
 _engine = VectorizationEngine()
 _exporter = SVGExporter()
 _segmentation = SegmentationEditor()
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    global _LOOP
+    _LOOP = asyncio.get_event_loop()
+
+
+def _ws_broadcast(data: dict) -> None:
+    """Thread-safe broadcast to all connected WebSocket clients."""
+    if not _LOOP or not _WS_CLIENTS:
+        return
+
+    async def _send() -> None:
+        dead: set[WebSocket] = set()
+        for ws in list(_WS_CLIENTS):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                dead.add(ws)
+        _WS_CLIENTS.difference_update(dead)
+
+    try:
+        asyncio.run_coroutine_threadsafe(_send(), _LOOP)
+    except Exception:
+        pass
 
 
 def _new_job(job_type: str = "single") -> tuple[str, dict]:
@@ -91,6 +121,12 @@ def _progress_cb(job: dict) -> Any:
     def _cb(pct: int, stage: str) -> None:
         job["progress"] = pct
         job["stage"] = stage
+        _ws_broadcast({
+            "job_id": job["job_id"],
+            "status": job["status"],
+            "progress": pct,
+            "stage": stage,
+        })
     return _cb
 
 
@@ -109,11 +145,22 @@ def _run_vectorize(job: dict, image_data: bytes, settings: dict) -> None:
         job["status"] = "done"
         job["progress"] = 100
         job["stage"] = "done"
+        _ws_broadcast({
+            "job_id": job["job_id"],
+            "status": "done",
+            "progress": 100,
+            "stage": "done",
+        })
     except Exception as exc:
         logger.exception("Vectorization failed for job %s", job["job_id"])
         job["status"] = "error"
         job["error"] = str(exc)
         job["stage"] = "error"
+        _ws_broadcast({
+            "job_id": job["job_id"],
+            "status": "error",
+            "error": str(exc),
+        })
 
 
 # ---------------------------------------------------------------------------
@@ -292,6 +339,15 @@ async def download(job_id: str, fmt: str) -> Response:
     )
 
 
+@app.get("/api/export")
+async def export(
+    job_id: str = Query(...),
+    format: str = Query(...),
+) -> Response:
+    """Export endpoint using query parameters (alias for /api/download)."""
+    return await download(job_id, format)
+
+
 @app.get("/api/batch/download/{batch_id}")
 async def batch_download(batch_id: str) -> Response:
     job = _JOBS.get(batch_id)
@@ -304,6 +360,23 @@ async def batch_download(batch_id: str) -> Response:
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="vectoreasy_batch.zip"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# WebSocket endpoint
+# ---------------------------------------------------------------------------
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket) -> None:
+    await websocket.accept()
+    _WS_CLIENTS.add(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _WS_CLIENTS.discard(websocket)
 
 
 # ---------------------------------------------------------------------------
